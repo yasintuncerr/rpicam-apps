@@ -14,12 +14,7 @@ output_headers = [
     'output.hpp',
 ]
 
-# FFmpeg bağımlılıkları için (UVCOutput transcoding için gerekli)
-avcodec_dep = dependency('libavcodec', required: false)
-avformat_dep = dependency('libavformat', required: false)
-avutil_dep = dependency('libavutil', required: false)
-swscale_dep = dependency('libswscale', required: false)
-
-rpicam_app_dep += [exif_dep, jpeg_dep, tiff_dep, png_dep, avcodec_dep, avformat_dep, avutil_dep, swscale_dep]
+# Sadece temel bağımlılıklar - FFmpeg kaldırıldı
+rpicam_app_dep += [exif_dep, jpeg_dep, tiff_dep, png_dep]
 
 install_headers(files(output_headers), subdir: meson.project_name() / 'output')
