@@ -11,6 +11,7 @@
 #include "circular_output.hpp"
 #include "file_output.hpp"
 #include "net_output.hpp"
+#include "uvc_output.hpp"
 #include "output.hpp"
 
 Output::Output(VideoOptions const *options)
@@ -109,25 +110,12 @@ Output *Output::Create(VideoOptions const *options)
 		return new NetOutput(options);
 	else if (options->Get().circular)
 		return new CircularOutput(options);
+	else if (strncmp(out_file.c_str(), "/dev/video", 10) == 0)
+		return new UVCOutput(options);
 	else if (!out_file.empty())
 		return new FileOutput(options);
 	else
 		return new Output(options);
-}
-
-void Output::MetadataReady(libcamera::ControlList &metadata)
-{
-	if (options_->Get().metadata.empty())
-		return;
-
-	metadata_queue_.push(metadata);
-}
-
-void start_metadata_output(std::streambuf *buf, std::string fmt)
-{
-	std::ostream out(buf);
-	if (fmt == "json")
-		out << "[" << std::endl;
 }
 
 void write_metadata(std::streambuf *buf, std::string fmt, libcamera::ControlList &metadata, bool first_write)
