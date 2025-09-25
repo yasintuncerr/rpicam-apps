@@ -27,7 +27,7 @@ UVCOutput::UVCOutput(VideoOptions const *options)
       encode_frame_(nullptr), decode_packet_(nullptr), encode_packet_(nullptr), 
       sws_ctx_(nullptr), transcoding_enabled_(false), first_frame_(true),
       input_format_(FORMAT_UNKNOWN), transcode_buffer_(nullptr), transcode_buffer_size_(0),
-      frames_written_(0), bytes_written_(0), droppped_frames_(0)
+      frames_written_(0), bytes_written_(0), dropped_frames_(0)
 {
     // Parse device path from options if provided
     const std::string& output = options->Get().output;
@@ -53,7 +53,7 @@ UVCOutput::~UVCOutput()
 {
     cleanup();
     LOG(1, "UVCOutput: Wrote " << frames_written_ << " frames (" 
-        << bytes_written_ << " bytes), dropped " << droppped_frames_ << " frames");
+        << bytes_written_ << " bytes), dropped " << dropped_frames_ << " frames");
 }
 
 bool UVCOutput::setupV4L2Device()
@@ -107,7 +107,7 @@ bool UVCOutput::setupV4L2Device()
 void UVCOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags)
 {
     if (v4l2_fd_ < 0) {
-        droppped_frames_++;
+        dropped_frames_++;
         return;
     }
 
@@ -117,7 +117,7 @@ void UVCOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint3
     if (first_frame_) {
         if (!detectInputFormat(mem, size)) {
             LOG(0, "UVCOutput: Unable to detect input format");
-            droppped_frames_++;
+            dropped_frames_++;
             return;
         }
         first_frame_ = false;
@@ -137,17 +137,17 @@ void UVCOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint3
                     outputMJPEGFrame(mjpeg_data, mjpeg_size);
                     av_free(mjpeg_data);
                 } else {
-                    droppped_frames_++;
+                    dropped_frames_++;
                 }
             } else {
                 LOG(1, "UVCOutput: H.264 input detected but transcoding not enabled");
-                droppped_frames_++;
+                dropped_frames_++;
             }
             break;
             
         default:
             LOG(1, "UVCOutput: Unsupported input format");
-            droppped_frames_++;
+            dropped_frames_++;
             return;
     }
 }
@@ -226,10 +226,10 @@ void UVCOutput::outputMJPEGFrame(void *mem, size_t size)
     ssize_t written = write(v4l2_fd_, mem, size);
     if (written < 0) {
         LOG(0, "UVCOutput: Failed to write frame: " << strerror(errno));
-        droppped_frames_++;
+        dropped_frames_++;
     } else if (written != static_cast<ssize_t>(size)) {
         LOG(1, "UVCOutput: Partial write: " << written << "/" << size);
-        droppped_frames_++;
+        dropped_frames_++;
     } else {
         frames_written_++;
         bytes_written_ += size;
@@ -435,12 +435,10 @@ void UVCOutput::cleanupTranscoder()
     }
 
     if (decoder_context_) {
-        avcodec_close(decoder_context_);
         avcodec_free_context(&decoder_context_);
     }
 
     if (encoder_context_) {
-        avcodec_close(encoder_context_);
         avcodec_free_context(&encoder_context_);
     }
 

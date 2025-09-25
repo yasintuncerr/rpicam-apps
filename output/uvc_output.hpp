@@ -5,20 +5,18 @@
 #include <string>
 #include <memory>
 
-// Forward declerations for transcoding
-extern "C"
-{
-    struct AVCodecConext;
-    struct AVFrame;
-    struct AVPacket;
-    struct SwsContext;
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/frame.h>
+#include <libavutil/avutil.h>
+#include <libswscale/swscale.h>
 }
 
 class UVCOutput : public Output
 {
 public:
     UVCOutput(VideoOptions const *options);
-    ~UVCOutput();
+    ~UVCOutput() override;
 
 protected:
     void outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags) override;
@@ -30,7 +28,6 @@ private:
     uint32_t output_format_;
     uint32_t output_width_;
     uint32_t output_height_;
-
 
     // Format detection and validation
     bool setupV4L2Device();
@@ -47,8 +44,8 @@ private:
     bool transcodeH264ToMJPEG(void *h264_data, size_t h264_size, uint8_t **mjpeg_data, size_t *mjpeg_size);
 
     // FFmpeg transcoding context
-    AVCodecConext *decoder_context_;
-    AVCodecConext *encoder_context_;
+    AVCodecContext *decoder_context_;
+    AVCodecContext *encoder_context_;
     AVFrame *decode_frame_;
     AVFrame *encode_frame_;
     AVPacket *decode_packet_;
@@ -70,8 +67,8 @@ private:
     uint8_t* transcode_buffer_;
     size_t transcode_buffer_size_;
 
-    //Statistics
+    // Statistics
     uint64_t frames_written_;
     uint64_t bytes_written_;
-    uint64_t droppped_frames_;
+    uint64_t dropped_frames_;
 };
