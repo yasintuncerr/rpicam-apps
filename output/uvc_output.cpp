@@ -4,6 +4,7 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <stdexcept>
+#include <iostream>
 
 UVCOutput::UVCOutput(VideoOptions const *options) 
     : Output(options), v4l2_fd_(-1), device_path_("/dev/video0"), 
@@ -26,15 +27,15 @@ UVCOutput::UVCOutput(VideoOptions const *options)
         throw std::runtime_error("Failed to setup V4L2 device: " + device_path_);
     }
 
-    LOG(1, "UVCOutput: Initialized with device " << device_path_ 
-        << " (" << output_width_ << "x" << output_height_ << ")");
+    std::cout << "UVCOutput: Initialized with device " << device_path_ 
+              << " (" << output_width_ << "x" << output_height_ << ")" << std::endl;
 }
 
 UVCOutput::~UVCOutput()
 {
     cleanup();
-    LOG(1, "UVCOutput: Wrote " << frames_written_ << " frames (" 
-        << bytes_written_ << " bytes), dropped " << dropped_frames_ << " frames");
+    std::cout << "UVCOutput: Wrote " << frames_written_ << " frames (" 
+              << bytes_written_ << " bytes), dropped " << dropped_frames_ << " frames" << std::endl;
 }
 
 bool UVCOutput::setupV4L2Device()
@@ -42,14 +43,14 @@ bool UVCOutput::setupV4L2Device()
     // Open the V4L2 loopback device
     v4l2_fd_ = open(device_path_.c_str(), O_WRONLY);
     if (v4l2_fd_ < 0) {
-        LOG(0, "UVCOutput: Failed to open " << device_path_ << ": " << strerror(errno));
+        std::cerr << "UVCOutput: Failed to open " << device_path_ << ": " << strerror(errno) << std::endl;
         return false;
     }
 
     // Query device capabilities
     struct v4l2_capability cap;
     if (ioctl(v4l2_fd_, VIDIOC_QUERYCAP, &cap) < 0) {
-        LOG(0, "UVCOutput: VIDIOC_QUERYCAP failed");
+        std::cerr << "UVCOutput: VIDIOC_QUERYCAP failed" << std::endl;
         close(v4l2_fd_);
         v4l2_fd_ = -1;
         return false;
@@ -57,7 +58,7 @@ bool UVCOutput::setupV4L2Device()
 
     // Check if device supports video output
     if (!(cap.capabilities & V4L2_CAP_VIDEO_OUTPUT)) {
-        LOG(0, "UVCOutput: Device does not support video output");
+        std::cerr << "UVCOutput: Device does not support video output" << std::endl;
         close(v4l2_fd_);
         v4l2_fd_ = -1;
         return false;
@@ -73,13 +74,13 @@ bool UVCOutput::setupV4L2Device()
     fmt.fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
 
     if (ioctl(v4l2_fd_, VIDIOC_S_FMT, &fmt) < 0) {
-        LOG(0, "UVCOutput: VIDIOC_S_FMT failed: " << strerror(errno));
+        std::cerr << "UVCOutput: VIDIOC_S_FMT failed: " << strerror(errno) << std::endl;
         close(v4l2_fd_);
         v4l2_fd_ = -1;
         return false;
     }
 
-    LOG(1, "UVCOutput: Set MJPEG format " << output_width_ << "x" << output_height_);
+    std::cout << "UVCOutput: Set MJPEG format " << output_width_ << "x" << output_height_ << std::endl;
     
     return true;
 }
@@ -93,25 +94,22 @@ void UVCOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint3
 
     // Check if this looks like a valid MJPEG frame
     if (!isMJPEGFrame(mem, size)) {
-        LOG(1, "UVCOutput: Invalid MJPEG frame, skipping");
+        std::cerr << "UVCOutput: Invalid MJPEG frame, skipping" << std::endl;
         dropped_frames_++;
         return;
     }
 
-    LOG(2, "UVCOutput: Writing MJPEG frame " << size << " bytes");
-
     // Write frame directly to V4L2 device
     ssize_t written = write(v4l2_fd_, mem, size);
     if (written < 0) {
-        LOG(0, "UVCOutput: Failed to write frame: " << strerror(errno));
+        std::cerr << "UVCOutput: Failed to write frame: " << strerror(errno) << std::endl;
         dropped_frames_++;
     } else if (written != static_cast<ssize_t>(size)) {
-        LOG(1, "UVCOutput: Partial write: " << written << "/" << size);
+        std::cerr << "UVCOutput: Partial write: " << written << "/" << size << std::endl;
         dropped_frames_++;
     } else {
         frames_written_++;
         bytes_written_ += size;
-        LOG(2, "UVCOutput: Successfully wrote " << size << " bytes");
     }
 }
 
