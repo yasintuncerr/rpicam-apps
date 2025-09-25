@@ -2,7 +2,7 @@ rpicam_app_src += files([
     'circular_output.cpp',
     'file_output.cpp',
     'net_output.cpp',
-    'uvc_output.cpp,
+    'uvc_output.cpp',
     'output.cpp',
 ])
 
@@ -16,7 +16,7 @@ output_headers = [
 
 # FFmpeg bağımlılıkları için (UVCOutput transcoding için gerekli)
 avcodec_dep = dependency('libavcodec', required: false)
-avformat_dep = dependency('libavformat', required: false) 
+avformat_dep = dependency('libavformat', required: false)
 avutil_dep = dependency('libavutil', required: false)
 swscale_dep = dependency('libswscale', required: false)
 
